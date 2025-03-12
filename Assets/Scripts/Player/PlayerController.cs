@@ -23,6 +23,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float m_playerMaxSpeed = 1000f;
     //The maximum speed the player can move
     [SerializeField] private float m_playerMinSpeed = 50f;
+    [SerializeField] private float m_jumpHeight = 1.0f;
 
     #endregion
 
@@ -90,5 +91,14 @@ public class PlayerController : MonoBehaviour
 
         // Clamp the weight to the maximum weight
         m_currentWeight = Mathf.Clamp(m_currentWeight, 0, m_maxWeight);
+    }
+
+    public void HandleJump(InputAction.CallbackContext ctx)
+    {
+        if (ctx.performed)
+        {
+            Debug.Log("Jumping");
+            m_rigidBody.AddForce(Vector2.up * m_jumpHeight, ForceMode2D.Impulse);
+        }
     }
 }
