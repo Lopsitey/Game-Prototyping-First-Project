@@ -35,18 +35,30 @@ public class PlayerController : MonoBehaviour
     //The maximum speed the player can move
     [SerializeField] private float m_playerMinSpeed = 50f;
     [SerializeField] private float m_jumpHeight = 25.0f;
-    [SerializeField] public float m_jumpTime = 0.4f;//essentially fuel
+    [SerializeField] private float m_jetpackFuel = 0.4f;
     //For the jetpack
+    [SerializeField] private float m_jetpackFuelMax = 5f;
     [SerializeField] public float m_jumpMultiplier = 2.0f;
 
     #endregion
 
+    #region Combat Variables
+    [Header("Combat Parameters")]
+    [SerializeField] private float m_currentHealth;
+    [SerializeField] private float m_maxHealth;
+    [SerializeField] private float m_currentAmmo;
+    [SerializeField] private float m_maxAmmo;
+
+    #endregion
+
+    #region Miscellaneous Variables
     private int m_currentWeight = 0;
     private const int m_maxWeight = 0;
 
     public Transform m_player;
     public LayerMask m_platform;
 
+    #endregion
     private void Awake()
     {
         m_moveAction = InputSystem.actions.FindAction("Move");
@@ -92,12 +104,12 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        if (m_rigidBody.linearVelocityY > 0 && m_isJumping && m_hasFuel())
+        if (m_rigidBody.linearVelocityY > 0 && m_isJumping && m_jetpackFuel > 0.0f)//Can the jetpack be activated
         {
-            Debug.Log("Jumped!");
             m_jumpCounter += Time.deltaTime;
-            if (m_jumpCounter > m_jumpTime)
-                m_isJumping = false;//stop jumping if you've been jumping for too long
+            if (m_jumpCounter > m_jetpackFuel)
+                m_jetpackFuel = 0.0f;
+            m_isJumping = false;//stop jumping if you've been jumping for too long
             m_rigidBody.linearVelocity += m_vecGravity * m_jumpMultiplier * Time.deltaTime;
         }
     }
@@ -143,9 +155,19 @@ public class PlayerController : MonoBehaviour
         //return Physics2D.Raycast(transform.position, -Vector2.up, 1f);
     }
 
-    //If the player is currently jumping
-    bool m_hasFuel()
+    public void addFuel(float fuelAmount)
     {
-        return true;//need to change this to check if jump time is greater than 0
+        m_jetpackFuel += fuelAmount;
+        m_jetpackFuel = Mathf.Clamp(m_jetpackFuel, 0, m_jetpackFuelMax);
+    }
+    public void addHealth(float healthAmount)
+    {
+        m_currentHealth += healthAmount;
+        m_currentHealth = Mathf.Clamp(m_currentHealth, 0, m_maxHealth);
+    }
+    public void addAmmo(float ammoAmount)
+    {
+        m_currentAmmo += ammoAmount;
+        m_currentAmmo = Mathf.Clamp(m_currentAmmo, 0, m_maxAmmo);
     }
 }
