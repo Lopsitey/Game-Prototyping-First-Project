@@ -2,7 +2,6 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
-using Unity.Android.Gradle.Manifest;
 
 public class PlayerController : MonoBehaviour
 {
@@ -19,13 +18,14 @@ public class PlayerController : MonoBehaviour
     //The direction that the player is moving in.
     private Vector2 m_playerDirection;
 
-    //The amount of jumps the player has performed
-    private float m_jumpCounter;
-
     //If the player is currently jumping
-    private bool m_isJumping;
+    private bool m_startedJump = false;
 
-    private Vector2 m_vecGravity;
+    //For checking how long the jump key has been held down
+    private float m_jumpStartTime;
+
+    //To check if the player is on the ground
+    private bool m_onGround = true;
 
     [Header("Movement Parameters")]
     //The speed at which the player moves
@@ -34,12 +34,16 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float m_playerMaxSpeed = 1000f;
     //The maximum speed the player can move
     [SerializeField] private float m_playerMinSpeed = 50f;
+    //For the jumping and the jetpack
     [SerializeField] private float m_jumpHeight = 25.0f;
-    [SerializeField] private float m_jetpackFuel = 0.4f;
-    //For the jetpack
-    [SerializeField] private float m_jetpackFuelMax = 5f;
-    [SerializeField] public float m_jumpMultiplier = 2.0f;
+    //Fall speed
+    [SerializeField] private float m_maxFallSpeed = -50.0f;
+    [SerializeField] private float m_jetpackFuel = 0.4f;//set to 0.4 so the player always has a bit of extra jump height when holding the button down by default
+    [SerializeField] private float m_jetpackFuelMax = 10f;
+    [SerializeField] public float m_jumpMultiplier = 0.5f;
 
+    //To decide if the jetpack can be activated
+    private int m_jumpCounter = 0;
     #endregion
 
     #region Combat Variables
@@ -55,15 +59,15 @@ public class PlayerController : MonoBehaviour
     private int m_currentWeight = 0;
     private const int m_maxWeight = 0;
 
+    [Header("Miscellaneous Parameters")]
     public Transform m_player;
-    public LayerMask m_platform;
+    public LayerMask m_platform;    
 
     #endregion
     private void Awake()
     {
         m_moveAction = InputSystem.actions.FindAction("Move");
         m_rigidBody = GetComponent<Rigidbody2D>();
-        m_vecGravity = new Vector2(0, -Physics2D.gravity.y);
     }
 
     /// <summary>
@@ -84,6 +88,30 @@ public class PlayerController : MonoBehaviour
         float speed = Mathf.Clamp(m_playerSpeed, m_playerMinSpeed, m_playerMaxSpeed);
         //apply the movement to the character using the clamped speed value.
         m_rigidBody.linearVelocity = new Vector2(m_playerDirection.x * (speed * Time.fixedDeltaTime), m_rigidBody.linearVelocityY);// m_playerDirection * (speed * Time.fixedDeltaTime);
+        if (m_rigidBody.linearVelocityY < 0)//Only affects fall speed
+        {
+            m_rigidBody.linearVelocityY = Mathf.Clamp(m_rigidBody.linearVelocityY, m_maxFallSpeed, 0);
+            //maxFallSpeed is in the minimum spot because fall speed increases negatively so the minimum is the maximum
+        }
+
+        //if not on the ground and the jump button is pressed, use the jetpack if it has fuel
+        if (!m_onGround && m_startedJump && m_jumpCounter == 2 && m_jetpackFuel > 0)
+        {
+            m_jetpackFuel -= Time.deltaTime * 10; // uses the fuel that was stored up
+
+            if (m_jetpackFuel <= 0.4)//if the jetpack fuel is at the default value, add a bit more to the jump height
+                m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_jumpHeight * (m_jumpMultiplier + 0.25f));
+            else
+            {
+                //if the jetpack fuel is not at the default value, use the default jump height
+                m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_jumpHeight * m_jumpMultiplier);
+            }
+            //m_rigidBody.AddForce(Vector2.up * m_jumpHeight * m_jumpMultiplier, ForceMode2D.Force);
+        }
+        else if (m_jetpackFuel <= 0)
+        {
+            FinishedJump();
+        }
     }
 
     /// <summary>
@@ -103,15 +131,6 @@ public class PlayerController : MonoBehaviour
                 m_LastDirection = m_playerDirection;//Sets the last facing direction of the player
             }
         }
-
-        if (m_rigidBody.linearVelocityY > 0 && m_isJumping && m_jetpackFuel > 0.0f)//Can the jetpack be activated
-        {
-            m_jumpCounter += Time.deltaTime;
-            if (m_jumpCounter > m_jetpackFuel)
-                m_jetpackFuel = 0.0f;
-            m_isJumping = false;//stop jumping if you've been jumping for too long
-            m_rigidBody.linearVelocity += m_vecGravity * m_jumpMultiplier * Time.deltaTime;
-        }
     }
 
     public void AddWeight(int weightGiven)
@@ -129,36 +148,40 @@ public class PlayerController : MonoBehaviour
         // Clamp the weight to the maximum weight
         m_currentWeight = Mathf.Clamp(m_currentWeight, 0, m_maxWeight);
     }
-
+    
     public void HandleJump(InputAction.CallbackContext ctx)
     {
-        if (ctx.performed && onGround())//jump started
+        if (ctx.started)
         {
-            m_isJumping = true;
-            m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_jumpHeight);//m_rigidBody.AddForce(Vector2.up * m_jumpHeight, ForceMode2D.Force);
+            m_startedJump = true;
+            //Iterates the jump counter between 0 and 2
+            m_jumpCounter += m_jumpCounter == 2 ? -2 : 1;//used to alternate between jumping and using the jetpack
         }
-        if (ctx.canceled)//jump ended
+
+        if (ctx.performed && m_onGround) // jump started
         {
-            m_isJumping= false;
-            m_jumpCounter = 0;
-            if (m_rigidBody.linearVelocityY > 0) 
-            {
-                //reduces the velocity by 60% after the jump has been completed to prevent further upward motion
-                m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_rigidBody.linearVelocityY * 0.6f);
-            }
+            m_onGround = false;
+            m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_jumpHeight);
+        }
+
+        if (ctx.canceled) // jump ended
+        {
+            if (m_startedJump)//if finished jump hasn't already been called by an empty jetpack
+                FinishedJump();
         }
     }
 
-    bool onGround() 
+
+    /*bool onGround() 
     {
         return Physics2D.OverlapBox(m_player.position, new Vector2(1.0f, 1.0f), 0, m_platform);
         //return Physics2D.Raycast(transform.position, -Vector2.up, 1f);
-    }
+    }*/
 
     public void addFuel(float fuelAmount)
     {
         m_jetpackFuel += fuelAmount;
-        m_jetpackFuel = Mathf.Clamp(m_jetpackFuel, 0, m_jetpackFuelMax);
+        m_jetpackFuel = Mathf.Clamp(m_jetpackFuel, 0, m_jetpackFuelMax);//Clamp the fuel to the maximum fuel which would be 2 pickups worth
     }
     public void addHealth(float healthAmount)
     {
@@ -169,5 +192,25 @@ public class PlayerController : MonoBehaviour
     {
         m_currentAmmo += ammoAmount;
         m_currentAmmo = Mathf.Clamp(m_currentAmmo, 0, m_maxAmmo);
+    }
+
+    void FinishedJump() 
+    {
+        m_startedJump = false;
+        if (m_rigidBody.linearVelocityY > 0)
+        {
+            //reduces the velocity by 60% after the jump has been completed to prevent further upward motion
+            m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_rigidBody.linearVelocityY * 0.6f);
+        }
+    }
+
+    void OnCollisionEnter2D(Collision2D collision)//If the ground is hit, reset the jetpack fuel
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Platform"))
+        {
+            m_jumpCounter = 0;
+            m_jetpackFuel = m_jetpackFuel <= 0 ? 0.4f : m_jetpackFuel;//ensures that the jetpack fuel is only reset if it is empty
+            m_onGround = true;
+        }
     }
 }
