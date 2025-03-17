@@ -58,19 +58,16 @@ public class PlayerController : MonoBehaviour
     #region Miscellaneous Variables
     private int m_currentWeight = 0;
     private const int m_maxWeight = 0;
-    private Animator m_animator;
 
     [Header("Miscellaneous Parameters")]
     public Transform m_player;
-    public LayerMask m_platform;
-    [SerializeField] private GameObject m_playerObject;
+    public LayerMask m_platform;    
 
     #endregion
     private void Awake()
     {
         m_moveAction = InputSystem.actions.FindAction("Move");
         m_rigidBody = GetComponent<Rigidbody2D>();
-        m_animator = GetComponent<Animator>();
     }
 
     /// <summary>
@@ -100,7 +97,6 @@ public class PlayerController : MonoBehaviour
         //if not on the ground and the jump button is pressed, use the jetpack if it has fuel
         if (!m_onGround && m_startedJump && m_jumpCounter == 2 && m_jetpackFuel > 0)
         {
-            m_animator.SetBool("IsFlying", true);
             m_jetpackFuel -= Time.deltaTime * 10; // uses the fuel that was stored up
 
             if (m_jetpackFuel <= 0.4)//if the jetpack fuel is at the default value, add a bit more to the jump height
@@ -133,7 +129,6 @@ public class PlayerController : MonoBehaviour
             if (m_playerDirection.magnitude > 0)
             {
                 m_LastDirection = m_playerDirection;//Sets the last facing direction of the player
-                FlipSprites(m_playerObject);//Flips the sprite to the opposite direction
             }
         }
     }
@@ -201,7 +196,6 @@ public class PlayerController : MonoBehaviour
 
     void FinishedJump() 
     {
-        m_animator.SetBool("IsFlying", false);
         m_startedJump = false;
         if (m_rigidBody.linearVelocityY > 0)
         {
@@ -218,12 +212,5 @@ public class PlayerController : MonoBehaviour
             m_jetpackFuel = m_jetpackFuel <= 0 ? 0.4f : m_jetpackFuel;//ensures that the jetpack fuel is only reset if it is empty
             m_onGround = true;
         }
-    }
-
-    void FlipSprites(GameObject parentObject)
-    {
-        Vector3 scale = parentObject.transform.localScale;
-        scale.x *= -1;//Reverses sprite direction
-        parentObject.transform.localScale = scale;
     }
 }
