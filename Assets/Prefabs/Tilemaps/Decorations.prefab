@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 4723587735329956876}
   - component: {fileID: 8747314063834228472}
   - component: {fileID: 1499243894952394608}
+  - component: {fileID: 2906337073703006122}
   m_Layer: 0
   m_Name: Decorations
   m_TagString: Untagged
@@ -619,6 +620,22 @@ TilemapRenderer:
   m_Mode: 0
   m_DetectChunkCullingBounds: 0
   m_MaskInteraction: 0
+--- !u!114 &2906337073703006122
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3603385873371977919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9809bf1345abc5648af68b3a82653f08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_OverrideArea: 0
+  m_Area: 0
+  m_IgnoreFromBuild: 1
+  m_AffectedAgents: ffffffff
 --- !u!1 &4107772917262788612
 GameObject:
   m_ObjectHideFlags: 0

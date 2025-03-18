@@ -10,6 +10,8 @@ public class EnemyController : MonoBehaviour
     [SerializeField] public Transform m_player;
     [SerializeField] public float m_speed;
     [SerializeField] public float m_stoppingDistance;
+    [SerializeField] private float m_jumpHeight = 10.0f;
+    [SerializeField] private float m_jumpSpeed = 2.0f;
 
     #endregion
 
@@ -48,6 +50,15 @@ public class EnemyController : MonoBehaviour
         m_enemyStates = EnemyStates.Idle;//Idle by default
     }
 
+    /// <summary>
+    /// When a fixed update loop is called, it runs at a constant rate, regardless of pc performance.
+    /// This ensures that physics are calculated properly.
+    /// </summary>
+    private void FixedUpdate()
+    {
+        StartCoroutine(JumpDelay());//Jumps every 2 seconds
+    }
+
     // Update is called once per frame
     void Update()
     {
@@ -58,11 +69,11 @@ public class EnemyController : MonoBehaviour
 
             if (m_agent.velocity.x > 0)//flips the sprite in the left or right direction so it's always facing the player
             {
-                m_spriteRenderer.flipX = true; // Facing right
+                m_spriteRenderer.flipX = false; // Facing right
             }
             else if (m_agent.velocity.x < 0)
             {
-                m_spriteRenderer.flipX = false; // Facing left
+                m_spriteRenderer.flipX = true; // Facing left
             }
         }
         //If the stopping distance has been met then an attack can occur
@@ -120,5 +131,11 @@ public class EnemyController : MonoBehaviour
         {
             m_enemyStates = EnemyStates.Idle;
         }
+    }
+
+    IEnumerator JumpDelay()
+    {
+        yield return new WaitForSeconds(m_jumpSpeed);
+        m_agent.velocity = new Vector2(m_agent.velocity.x, m_jumpHeight);
     }
 }
