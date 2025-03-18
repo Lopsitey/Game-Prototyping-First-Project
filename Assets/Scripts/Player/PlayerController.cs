@@ -6,8 +6,8 @@ using System.Collections;
 public class PlayerController : MonoBehaviour
 {
     #region Movement Variables
-    //Default to 0.0f, -1.0f which is facing down so if the player tries to fire a bullet without moving it will always have a valid direction
-    private Vector2 m_LastDirection = new Vector2(0.0f, -1.00f);
+    //Default to -1.0f, 0.0f which is facing left so if the player tries to fire a bullet without moving it will always have a valid direction
+    private Vector2 m_LastDirection = new Vector2(-1.0f, 0.0f);
 
     //The inputs that we need to retrieve from the input system.
     private InputAction m_moveAction;
@@ -59,6 +59,7 @@ public class PlayerController : MonoBehaviour
     private int m_currentWeight = 0;
     private const int m_maxWeight = 0;
     private Animator m_animator;
+    private bool m_firstCall = false;
 
     [Header("Miscellaneous Parameters")]
     public Transform m_player;
@@ -130,10 +131,12 @@ public class PlayerController : MonoBehaviour
         if (m_playerDirection != m_LastDirection)
         {
             // If there is movement, set the directional values to ensure the character is facing the way they are moving.
-            if (m_playerDirection.magnitude > 0)
+            if (m_playerDirection.magnitude > 0)//if the player's direction changes
             {
+                //This prevents the player from being flipped until they face right
+                if (m_playerDirection == new Vector2(1.0f, 0.0f) || m_firstCall)//They face left by default so it makes sense not to flip them until otherwise
+                    FlipSprites(m_playerObject);//Flips the sprite to the opposite direction
                 m_LastDirection = m_playerDirection;//Sets the last facing direction of the player
-                FlipSprites(m_playerObject);//Flips the sprite to the opposite direction
             }
         }
     }
@@ -222,6 +225,7 @@ public class PlayerController : MonoBehaviour
 
     void FlipSprites(GameObject parentObject)
     {
+        m_firstCall = true;
         Vector3 scale = parentObject.transform.localScale;
         scale.x *= -1;//Reverses sprite direction
         parentObject.transform.localScale = scale;
