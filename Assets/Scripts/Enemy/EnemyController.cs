@@ -28,8 +28,9 @@ public class EnemyController : MonoBehaviour
     #region Miscellaneous variables
 
     private SpriteRenderer m_spriteRenderer;
-    NavMeshAgent m_agent;
+    private Rigidbody2D m_body;
     private bool m_attacking = false;
+    private bool m_onGround;
 
     private enum EnemyStates
     {
@@ -44,10 +45,11 @@ public class EnemyController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        m_agent = GetComponent<NavMeshAgent>();
+        m_body = GetComponent<Rigidbody2D>();
         m_spriteRenderer = GetComponent<SpriteRenderer>();
         m_player = FindFirstObjectByType<PlayerController>().transform;
         m_enemyStates = EnemyStates.Idle;//Idle by default
+        StartCoroutine(JumpDelay());//Jumps every 2 seconds
     }
 
     /// <summary>
@@ -56,22 +58,24 @@ public class EnemyController : MonoBehaviour
     /// </summary>
     private void FixedUpdate()
     {
-        StartCoroutine(JumpDelay());//Jumps every 2 seconds
+        
     }
 
     // Update is called once per frame
     void Update()
     {
-        //If the player is in sight, is outside of the stopping distance and the enemy is not stunned
-        if (Vector2.Distance(transform.position, m_player.position) > m_stoppingDistance && m_enemyStates == EnemyStates.MovingToPlayer)
+        //If the player is in sight, is outside of the stopping distance and the enemy on the ground
+        if (Vector2.Distance(m_body.position, m_player.position) > m_stoppingDistance && m_enemyStates == EnemyStates.MovingToPlayer)// && m_onGround)
         {
-            m_agent.SetDestination(m_player.position);
+            Vector2 direction = (m_player.position - (Vector3)transform.position).normalized;//Normalized to ensure that only the direction is extracted from the vector 
+            m_body.linearVelocity = new Vector2(direction.x * m_speed, m_body.linearVelocity.y);
+            //m_body.SetDestination(m_player.position);// would also work
 
-            if (m_agent.velocity.x > 0)//flips the sprite in the left or right direction so it's always facing the player
+            if (m_body.linearVelocity.x > 0)//flips the sprite in the left or right direction so it's always facing the player
             {
                 m_spriteRenderer.flipX = false; // Facing right
             }
-            else if (m_agent.velocity.x < 0)
+            else if (m_body.linearVelocity.x < 0)
             {
                 m_spriteRenderer.flipX = true; // Facing left
             }
@@ -82,15 +86,18 @@ public class EnemyController : MonoBehaviour
             m_enemyStates = EnemyStates.Attack;
         }
 
+        /*if (!m_onGround)//prevents movement when in the air
+        {
+            m_agent.linearVelocityX = 0;
+        }*/
+
         switch (m_enemyStates)
         {
             case EnemyStates.Idle:
-                m_agent.isStopped = true;//Stops movement immediately
-                m_agent.velocity = Vector3.zero;//Ensures no movement happens
+                m_body.linearVelocity = new Vector2(0, m_body.linearVelocity.y);//Only stop horizontal movement
                 break;
 
             case EnemyStates.MovingToPlayer:
-                m_agent.isStopped = false;
                 break;
 
             case EnemyStates.Attack:
@@ -135,7 +142,22 @@ public class EnemyController : MonoBehaviour
 
     IEnumerator JumpDelay()
     {
-        yield return new WaitForSeconds(m_jumpSpeed);
-        m_agent.velocity = new Vector2(m_agent.velocity.x, m_jumpHeight);
+        while (true)
+        {
+            yield return new WaitForSeconds(m_jumpSpeed);
+            if (m_onGround)
+            {
+                m_body.linearVelocity = new Vector2(m_body.linearVelocityX, m_jumpHeight);
+                m_onGround = false;
+            }
+        }
+    }
+
+    void OnCollisionEnter2D(Collision2D collision)//If the ground is hit, reset the jetpack fuel
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Platform"))
+        {
+            m_onGround = true;
+        }
     }
 }
