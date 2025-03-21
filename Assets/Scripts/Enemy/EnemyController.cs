@@ -7,10 +7,9 @@ public class EnemyController : MonoBehaviour
     #region Movement variables
 
     [Header("Movement Parameters")]
-    [SerializeField] public Transform m_player;
     [SerializeField] public float m_speed;
     [SerializeField] public float m_stoppingDistance;
-    [SerializeField] private float m_jumpHeight = 10.0f;
+    [SerializeField] private float m_jumpHeight = 25.0f;
     [SerializeField] private float m_jumpSpeed = 2.0f;
 
     #endregion
@@ -20,13 +19,13 @@ public class EnemyController : MonoBehaviour
     [Header("Damage Parameters")]
     [SerializeField] private int m_attackDamage = 25;
     [SerializeField] private float m_attackSpeed = 2f;
-    //Not implemented yet!
-    //[SerializeField] private PlayerHealth m_playerHealth;
+    private PlayerHealth m_playerHealth;
 
     #endregion
 
     #region Miscellaneous variables
 
+    private Transform m_player;
     private SpriteRenderer m_spriteRenderer;
     private Rigidbody2D m_body;
     private bool m_attacking = false;
@@ -45,10 +44,13 @@ public class EnemyController : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
+        m_player = FindFirstObjectByType<PlayerController>().transform;
+        m_playerHealth = m_player.GetComponent<PlayerHealth>();
+
         m_body = GetComponent<Rigidbody2D>();
         m_spriteRenderer = GetComponent<SpriteRenderer>();
-        m_player = FindFirstObjectByType<PlayerController>().transform;
         m_enemyStates = EnemyStates.Idle;//Idle by default
+        
         StartCoroutine(JumpDelay());//Jumps every 2 seconds
     }
 
@@ -111,8 +113,7 @@ public class EnemyController : MonoBehaviour
         if (!m_attacking)//If the attack isn't on cooldown
         {
             m_attacking = true;
-            //not implemented damage yet!
-            //m_playerHealth.TakeDamage(m_attackDamage, true);//Apply damage but do show the mask
+            m_playerHealth.TakeDamage(m_attackDamage, true);//Apply damage but do show the mask
             StartCoroutine(AttackDelay());//Delay for next attack
         }
     }
@@ -145,7 +146,7 @@ public class EnemyController : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(m_jumpSpeed);
-            if (m_onGround)
+            if (m_onGround && !m_attacking)
             {
                 m_body.linearVelocity = new Vector2(m_body.linearVelocityX, m_jumpHeight);
                 m_onGround = false;

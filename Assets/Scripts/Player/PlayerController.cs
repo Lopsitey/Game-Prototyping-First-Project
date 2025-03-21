@@ -27,6 +27,9 @@ public class PlayerController : MonoBehaviour
     //To check if the player is on the ground
     private bool m_onGround = true;
 
+    //To decide if the jetpack can be activated
+    private int m_jumpCounter = 0;
+
     [Header("Movement Parameters")]
     //The speed at which the player moves
     [SerializeField] private float m_playerSpeed = 200f;
@@ -39,32 +42,35 @@ public class PlayerController : MonoBehaviour
     //Fall speed
     [SerializeField] private float m_maxFallSpeed = -50.0f;
     [SerializeField] private float m_jetpackFuel = 0.4f;//set to 0.4 so the player always has a bit of extra jump height when holding the button down by default
-    [SerializeField] private float m_jetpackFuelMax = 10f;
+    [SerializeField] private float m_jetpackFuelMax = 15f;
     [SerializeField] public float m_jumpMultiplier = 0.5f;
 
-    //To decide if the jetpack can be activated
-    private int m_jumpCounter = 0;
     #endregion
 
     #region Combat Variables
     [Header("Combat Parameters")]
-    [SerializeField] private float m_currentHealth;
-    [SerializeField] private float m_maxHealth;
     [SerializeField] private float m_currentAmmo;
     [SerializeField] private float m_maxAmmo;
 
     #endregion
 
     #region Miscellaneous Variables
+
+    private Animator m_animator;
+    private GameObject m_playerObject;
+    private Transform m_player;
+
+    private GameObject m_fuelBar1;
+    private GameObject m_fuelBar2;
+    private GameObject m_fuelBar3;
+
     private int m_currentWeight = 0;
     private const int m_maxWeight = 0;
-    private Animator m_animator;
     private bool m_firstCall = false;
 
     [Header("Miscellaneous Parameters")]
-    public Transform m_player;
-    public LayerMask m_platform;
-    [SerializeField] private GameObject m_playerObject;
+    [SerializeField] private LayerMask m_platform;
+    
 
     #endregion
     private void Awake()
@@ -72,6 +78,12 @@ public class PlayerController : MonoBehaviour
         m_moveAction = InputSystem.actions.FindAction("Move");
         m_rigidBody = GetComponent<Rigidbody2D>();
         m_animator = GetComponent<Animator>();
+        m_playerObject = gameObject;
+        m_player = m_playerObject.transform;
+
+        m_fuelBar1 = m_player.transform.Find("Jetpack/Fuel Bar 1").gameObject;
+        m_fuelBar2 = m_player.transform.Find("Jetpack/Fuel Bar 2").gameObject;
+        m_fuelBar3 = m_player.transform.Find("Jetpack/Fuel Bar 3").gameObject;
     }
 
     /// <summary>
@@ -79,7 +91,7 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     void Start()
     {
-
+        
     }
 
     /// <summary>
@@ -110,11 +122,13 @@ public class PlayerController : MonoBehaviour
             {
                 //if the jetpack fuel is not at the default value, use the default jump height
                 m_rigidBody.linearVelocity = new Vector2(m_rigidBody.linearVelocityX, m_jumpHeight * m_jumpMultiplier);
+                //m_rigidBody.AddForce(Vector2.up * m_jumpHeight * m_jumpMultiplier, ForceMode2D.Force);
             }
-            //m_rigidBody.AddForce(Vector2.up * m_jumpHeight * m_jumpMultiplier, ForceMode2D.Force);
+            UpdateFuelBars();//Keeps the fuel bars updated whilst the player is flying
         }
         else if (m_jetpackFuel <= 0)
         {
+            m_fuelBar3.SetActive(false);
             FinishedJump();
         }
     }
@@ -188,21 +202,19 @@ public class PlayerController : MonoBehaviour
 
     public void addFuel(float fuelAmount)
     {
+        m_jetpackFuel = m_jetpackFuel == 0.4f ? 0 : m_jetpackFuel;//ensures the tank is filled from zero and not the amount used for a double jump
         m_jetpackFuel += fuelAmount;
         m_jetpackFuel = Mathf.Clamp(m_jetpackFuel, 0, m_jetpackFuelMax);//Clamp the fuel to the maximum fuel which would be 2 pickups worth
+        UpdateFuelBars();//Updates the fuel when fuel is collected
     }
-    public void addHealth(float healthAmount)
-    {
-        m_currentHealth += healthAmount;
-        m_currentHealth = Mathf.Clamp(m_currentHealth, 0, m_maxHealth);
-    }
+
     public void addAmmo(float ammoAmount)
     {
         m_currentAmmo += ammoAmount;
         m_currentAmmo = Mathf.Clamp(m_currentAmmo, 0, m_maxAmmo);
     }
 
-    void FinishedJump()
+    private void FinishedJump()
     {
         m_animator.SetBool("IsFlying", false);
         m_startedJump = false;
@@ -219,15 +231,38 @@ public class PlayerController : MonoBehaviour
         {
             m_jumpCounter = 0;
             m_jetpackFuel = m_jetpackFuel <= 0 ? 0.4f : m_jetpackFuel;//ensures that the jetpack fuel is only reset if it is empty
+            m_fuelBar3.SetActive(true);
             m_onGround = true;
         }
     }
 
-    void FlipSprites(GameObject parentObject)
+    private void FlipSprites(GameObject parentObject)
     {
         m_firstCall = true;
         Vector3 scale = parentObject.transform.localScale;
         scale.x *= -1;//Reverses sprite direction
         parentObject.transform.localScale = scale;
+    }
+
+    /// <summary>
+    ///Updates the fuel gauge on the jetpack
+    /// </summary>
+    private void UpdateFuelBars()
+    {
+        float fuelPercent = math.trunc((m_jetpackFuel / m_jetpackFuelMax) * 100);//converts the fuel to a percentage to make the calculations easier
+                                                                                 //The values don't have to be hardcoded in and will be changed dynamically if a percentage is used
+        if (fuelPercent > 66)
+        {
+            m_fuelBar1.SetActive(true);
+            m_fuelBar2.SetActive(true);
+            m_fuelBar3.SetActive(true);
+        }
+        else if (fuelPercent <= 66 && fuelPercent > 33)
+        { 
+            m_fuelBar1.SetActive(false);
+            m_fuelBar2.SetActive(true);
+        }
+        else if (fuelPercent <= 33)
+            m_fuelBar2.SetActive(false);
     }
 }
